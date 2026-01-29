@@ -10,17 +10,17 @@
 ### Authentication
 All API requests require an API Key passed in the request header.
 *   **Header Name**: `X-API-Key`
-*   **Default Key**: `xingshuo` (Can be changed via `VOICEVOX_ADAPTER_KEY` environment variable)
+*   **Default Key**: `YOUR_API_KEY` (Can be changed via `VOICEVOX_ADAPTER_KEY` environment variable)
 
 ### API Usage
 
 #### 1. Get Voices
 **Endpoint**: `GET /voices`  
-**Header**: `X-API-Key: xingshuo`
+**Header**: `X-API-Key: YOUR_API_KEY`
 
 #### 2. Synthesize Speech
 **Endpoint**: `POST /tts`  
-**Header**: `X-API-Key: xingshuo`
+**Header**: `X-API-Key: YOUR_API_KEY`
 **Request Body (JSON)**:
 ```json
 {
@@ -37,17 +37,17 @@ All API requests require an API Key passed in the request header.
 ### 鉴权说明
 所有 API 请求均需要在 Header 中携带 API Key。
 *   **Header 名称**: `X-API-Key`
-*   **默认 Key**: `xingshuo` (可以通过环境变量 `VOICEVOX_ADAPTER_KEY` 自定义)
+*   **默认 Key**: `YOUR_API_KEY` (可以通过环境变量 `VOICEVOX_ADAPTER_KEY` 自定义)
 
 ### 接口调用指南
 
 #### 1. 获取音色列表
 **接口**: `GET /voices`  
-**Header**: `X-API-Key: xingshuo`
+**Header**: `X-API-Key: YOUR_API_KEY`
 
 #### 2. 语音合成接口
 **接口**: `POST /tts`  
-**Header**: `X-API-Key: xingshuo`
+**Header**: `X-API-Key: YOUR_API_KEY`
 **请求体 (JSON)**:
 ```json
 {
@@ -62,7 +62,7 @@ const response = await fetch("https://your-domain.com/tts", {
   method: "POST",
   headers: { 
     "Content-Type": "application/json",
-    "X-API-Key": "xingshuo" 
+    "X-API-Key": "YOUR_API_KEY" 
   },
   body: JSON.stringify({
     text: "你好世界",
