@@ -1,4 +1,4 @@
-# VOICEVOX Pseudo-Chinese Adapter (偽中国語/Pseudo-JP TTS)
+# VOICEVOX OneStepAPI (CN/EN/Pseudo-JP TTS)
 
 [English](#english) | [日本語](#japanese) | [中文](#chinese)
 
@@ -33,8 +33,8 @@ It also simplifies the API into a **single step**: just send text + speaker ID, 
 #### 2. Install & Run
 ```bash
 # Clone repo
-git clone https://github.com/constansino/voicevox-adapter.git
-cd voicevox-adapter
+git clone https://github.com/constansino/voicevox-onestepapi-cn-en-pseudo-jp-tts.git
+cd voicevox-onestepapi-cn-en-pseudo-jp-tts
 
 # Install dependencies
 pip install fastapi uvicorn requests pypinyin
@@ -57,12 +57,7 @@ curl http://localhost:8000/voices
 ```bash
 curl -X POST "http://localhost:8000/tts" \
      -H "Content-Type: application/json" \
-     -d 
-{
-           "text": "你好世界, this is a test.",
-           "speaker": 3,
-           "speedScale": 1.1
-         }
+     -d '{ "text": "你好世界, this is a test.", "speaker": 3, "speedScale": 1.1 }' \
      --output output.wav
 ```
 
@@ -85,7 +80,7 @@ curl -X POST "http://localhost:8000/tts" \
 *   **ワンステップ TTS**: テキストと話者IDを送るだけで WAV が返ってきます。
 *   **偽中国語対応**: 400以上のピンインを、より自然に聞こえるカタカナにマッピング（例：「你好」 -> 「ニーハオ」）。
 *   **英語対応**: 簡単なルールベースで英語をカタカナ読み変換。
-*   **辞書機能**: `custom_dict.json` で単語の読み方を自由に修正可能。
+*   **辞书機能**: `custom_dict.json` で単語の読み方を自由に修正可能。
 
 ### 使い方
 
@@ -96,8 +91,8 @@ curl -X POST "http://localhost:8000/tts" \
 #### 2. インストールと実行
 ```bash
 # リポジトリをクローン
-git clone https://github.com/constansino/voicevox-adapter.git
-cd voicevox-adapter
+git clone https://github.com/constansino/voicevox-onestepapi-cn-en-pseudo-jp-tts.git
+cd voicevox-onestepapi-cn-en-pseudo-jp-tts
 
 # 依存ライブラリのインストール
 pip install fastapi uvicorn requests pypinyin
@@ -120,12 +115,7 @@ curl http://localhost:8000/voices
 ```bash
 curl -X POST "http://localhost:8000/tts" \
      -H "Content-Type: application/json" \
-     -d 
-{
-           "text": "你好世界, this is a test.",
-           "speaker": 3,
-           "speedScale": 1.1
-         }
+     -d '{ "text": "你好世界, this is a test.", "speaker": 3, "speedScale": 1.1 }' \
      --output output.wav
 ```
 
@@ -160,8 +150,8 @@ VOICEVOX 原生仅支持日语。如果您直接发送中文，它无法识别�
 #### 2. 安装与运行
 ```bash
 # 克隆仓库
-git clone https://github.com/constansino/voicevox-adapter.git
-cd voicevox-adapter
+git clone https://github.com/constansino/voicevox-onestepapi-cn-en-pseudo-jp-tts.git
+cd voicevox-onestepapi-cn-en-pseudo-jp-tts
 
 # 安装依赖
 pip install fastapi uvicorn requests pypinyin
@@ -184,11 +174,6 @@ curl http://localhost:8000/voices
 ```bash
 curl -X POST "http://localhost:8000/tts" \
      -H "Content-Type: application/json" \
-     -d 
-{
-           "text": "你好世界, 这是一个测试。",
-           "speaker": 3,
-           "speedScale": 1.1
-         }
+     -d '{ "text": "你好世界, 这是一个测试。", "speaker": 3, "speedScale": 1.1 }' \
      --output output.wav
 ```
