@@ -4,7 +4,7 @@ import json
 import logging
 import requests
 from typing import Optional, List, Dict
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Header, Depends
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ from pypinyin import pinyin, Style
 
 # --- 配置 ---
 VOICEVOX_URL = os.getenv("VOICEVOX_BASE_URL", "http://127.0.0.1:800").rstrip("/")
+API_KEY = os.getenv("VOICEVOX_ADAPTER_KEY", "xingshuo") # 默认 Key
 HOST = "0.0.0.0"
 PORT = 8000
 
@@ -19,7 +20,7 @@ PORT = 8000
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("VoicevoxAdapter")
 
-app = FastAPI(title="Voicevox Pseudo-JP Adapter")
+app = FastAPI(title="Voicevox OneStepAPI")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,13 +30,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 全量拼音 -> 片假名 映射表 (伪中国语调校版) ---
+# --- 鉴权逻辑 ---
+async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+    return x_api_key
+
+# --- 全量拼音 -> 片假名 映射表 ---
 PINYIN_TO_KANA = {
     "a": "アー", "ai": "アイ", "an": "アン", "ang": "アン", "ao": "アオ",
     "ba": "バー", "bai": "バイ", "ban": "バン", "bang": "バン", "bao": "バオ", "bei": "ベイ", "ben": "ベン", "beng": "ベン", "bi": "ビー", "bian": "ビェン", "biao": "ビャオ", "bie": "ビェ", "bin": "ビン", "bing": "ビン", "bo": "ボ", "bu": "ブー",
-    "ca": "ツァ", "cai": "ツァイ", "can": "ツァン", "cang": "ツァン", "cao": "ツァオ", "ce": "ツァ", "cen": "ツェン", "ceng": "ツェン", "ci": "ツー", "cong": "ツォン", "cou": "ツォウ", "cu": "ツー", "cuan": "ツァン", "cui": "ツイ", "cun": "ツン", "cuo": "ツォ",
+    "ca": "ツァ", "cai": "ツァイ", "can": "ツァン", "cang": "ツァン", "cao": "ツァオ", "ce": "ツァ", "cen": "ツェン", "ceng": "ツェン", "ci": "ツー", "cong": "ツォン", "cou": "ツォ出", "cu": "ツー", "cuan": "ツァン", "cui": "ツイ", "cun": "ツン", "cuo": "ツォ",
     "cha": "チャー", "chai": "チャイ", "chan": "チャン", "chang": "チャン", "chao": "チャオ", "che": "チャー", "chen": "チェン", "cheng": "チェン", "chi": "チー", "chong": "チョン", "chou": "チョウ", "chu": "チュー", "chua": "チュア", "chuai": "チュアイ", "chuan": "チュアン", "chuang": "チュアン", "chui": "チュイ", "chun": "チュン", "chuo": "チュオ",
-    "da": "ダー", "dai": "ダイ", "dan": "ダン", "dang": "ダン", "dao": "ダオ", "de": "ダ", "dei": "デイ", "den": "デン", "deng": "デン", "di": "ディー", "dia": "ディア", "dian": "ディェン", "diao": "ディアオ", "die": "ディェ", "ding": "ディン", "diu": "ディウ", "dong": "ドン", "dou": "ドウ", "du": "ドゥー", "duan": "ドゥアン", "dui": "ドゥイ", "dun": "ドゥン", "duo": "ドゥオ",
+    "da": "ダー", "dai": "ダイ", "dan": "ダン", "dang": "ダン", "dao": "ダオ", "de": "ダ", "dei": "デイ", "den": "デン", "deng": "デン", "di": "ディー", "dia": "ディア", "dian": "ディェン", "diao": "ディアオ", "die": "ディェ", "ding": "ディン", "diu": "ディウ", "dong": "ドン", "dou": "ドウ", "du": "ドゥー", "duan": "ドゥアン", "dui": "ドゥイ", "dun": "ドゥン", "duo": "ドゥ奥",
     "e": "アー", "ei": "エイ", "en": "エン", "eng": "エン", "er": "アル",
     "fa": "ファー", "fan": "ファン", "fang": "ファン", "fei": "フェイ", "fen": "フェン", "feng": "フェン", "fo": "フォ", "fou": "フォウ", "fu": "フー",
     "ga": "ガー", "gai": "ガイ", "gan": "ガン", "gang": "ガン", "gao": "ガオ", "ge": "ガ", "gei": "ゲイ", "gen": "ゲン", "geng": "ゲン", "gong": "ゴン", "gou": "ゴウ", "gu": "グー", "gua": "グア", "guai": "グアイ", "guan": "グアン", "guang": "グアン", "gui": "グイ", "gun": "グン", "guo": "グオ",
@@ -44,7 +51,7 @@ PINYIN_TO_KANA = {
     "ka": "カー", "kai": "カイ", "kan": "カン", "kang": "カン", "kao": "カオ", "ke": "カ", "kei": "ケイ", "ken": "ケン", "keng": "ケン", "kong": "コン", "kou": "コウ", "ku": "クー", "kua": "クア", "kuai": "クアイ", "kuan": "クアン", "kuang": "クアン", "kui": "クイ", "kun": "クン", "kuo": "クオ",
     "la": "ラー", "lai": "ライ", "lan": "ラン", "lang": "ラン", "lao": "ラオ", "le": "ラ", "lei": "レイ", "leng": "レン", "li": "リー", "lia": "リア", "lian": "リェン", "liang": "リャン", "liao": "リャオ", "lie": "リェ", "lin": "リン", "ling": "リン", "liu": "リウ", "long": "ロン", "lou": "ロウ", "lu": "ルー", "lv": "リュー", "luan": "ルアン", "lue": "ルェ", "lun": "ルン", "luo": "ルオ",
     "ma": "マー", "mai": "マイ", "man": "マン", "mang": "マン", "mao": "マオ", "me": "マ", "mei": "メイ", "men": "メン", "meng": "メン", "mi": "ミー", "mian": "ミェン", "miao": "ミャオ", "mie": "ミェ", "min": "ミン", "ming": "ミン", "miu": "ミウ", "mo": "モ", "mou": "モウ", "mu": "ムー",
-    "na": "ナー", "nai": "ナイ", "nan": "ナン", "nang": "ナン", "nao": "ナオ", "ne": "ナ", "nei": "ネイ", "nen": "ネン", "neng": "ネン", "ni": "ニー", "nian": "ニェン", "niang": "ニャン", "niao": "ニャオ", "nie": "ニェ", "nin": "ニン", "ning": "ニン", "niu": "ニウ", "nong": "ノン", "nou": "ノウ", "nu": "ヌー", "nv": "ニュー", "nuan": "ヌアン", "nue": "ニュェ", "nuo": "ヌオ",
+    "na": "ナー", "nai": "ナイ", "nan": "ナン", "nang": "ナン", "nao": "ナオ", "ne": "ナ", "nei": "ネイ", "nen": "ネン", "neng": "ネン", "ni": "ニー", "nian": "ニェン", "niang": "ニャン", "niao": "ニャ奥", "nie": "ニェ", "nin": "ニン", "ning": "ニン", "niu": "ニウ", "nong": "ノン", "nou": "ノウ", "nu": "ヌー", "nv": "ニュー", "nuan": "ヌアン", "nue": "ニュェ", "nuo": "ヌオ",
     "o": "オー", "ou": "オウ",
     "pa": "パー", "pai": "パイ", "pan": "パン", "pang": "パン", "pao": "パオ", "pei": "ペイ", "pen": "ペン", "peng": "ペン", "pi": "ピー", "pian": "ピェン", "piao": "ピャオ", "pie": "ピェ", "pin": "ピン", "ping": "ピン", "po": "ポ", "pou": "ポウ", "pu": "プー",
     "qi": "チー", "qia": "チャ", "qian": "チェン", "qiang": "チャン", "qiao": "チャオ", "qie": "チェ", "qin": "チン", "qing": "チン", "qiong": "チョン", "qiu": "チウ", "qu": "チュー", "quan": "チュェン", "que": "チュェ", "qun": "チュン",
@@ -56,11 +63,11 @@ PINYIN_TO_KANA = {
     "xi": "シー", "xia": "シア", "xian": "シェン", "xiang": "シャン", "xiao": "シャオ", "xie": "シェ", "xin": "シン", "xing": "シン", "xiong": "ション", "xiu": "シウ", "xu": "シュー", "xuan": "シュェン", "xue": "シュェ", "xun": "シュン",
     "ya": "ヤー", "yan": "イェン", "yang": "ヤン", "yao": "ヤオ", "ye": "イェ", "yi": "イー", "yin": "イン", "ying": "イン", "yong": "ヨン", "you": "ヨウ", "yu": "ユー", "yuan": "ユェン", "yue": "ユェ", "yun": "ユン",
     "za": "ザー", "zai": "ザイ", "zan": "ザン", "zang": "ザン", "zao": "ザオ", "ze": "ザ", "zei": "ゼイ", "zen": "ゼン", "zeng": "ゼン", "zi": "ツー", "zong": "ゾン", "zou": "ゾウ", "zu": "ズー", "zuan": "ズアン", "zui": "ズイ", "zun": "ズン", "zuo": "ズオ",
-    "zha": "ジャー", "zhai": "ジャイ", "zhan": "ジャン", "zhang": "ジャン", "zhao": "ジャオ", "zhe": "ジャ", "zhei": "ジェイ", "zhen": "ジェン", "zheng": "ジェン", "zhi": "ジー", "zhong": "ジョン", "zhou": "ジョウ", "zhu": "ジュー", "zhua": "ジュア", "zhuai": "ジュアイ", "zhuan": "ジュアン", "zhuang": "ジュアン", "zhui": "ジュイ", "zhun": "ジュン", "zhuo": "ジュオ"
+    "zha": "ジャー", "zhai": "ジャイ", "zhan": "ジャン", "zhang": "ジャン", "zhao": "ジャ奥", "zhe": "ジャ", "zhei": "ジェイ", "zhen": "ジェン", "zheng": "ジェン", "zhi": "ジー", "zhong": "ジョン", "zhou": "ジョウ", "zhu": "ジュー", "zhua": "ジュア", "zhuai": "ジュアイ", "zhuan": "ジュアン", "zhuang": "ジュアン", "zhui": "ジュイ", "zhun": "ジュン", "zhuo": "ジュオ"
 }
 
 class PseudoConverter:
-    def __init__(self, dict_path="/root/voicevox-adapter/custom_dict.json"):
+    def __init__(self, dict_path="/root/voicevox-onestepapi-cn-en-pseudo-jp-tts/custom_dict.json"):
         self.dict_path = dict_path
         self.custom_dict = {}
         
@@ -77,16 +84,11 @@ class PseudoConverter:
         return '\u4e00' <= char <= '\u9fff'
 
     def process_chinese(self, text):
-        # 1. 转拼音 (无声调)
         py_list = pinyin(text, style=Style.NORMAL, errors='default')
         result = []
         for py in py_list:
             s = py[0].lower().replace("ü", "v")
-            # 2. 查表替换为片假名
             kana = PINYIN_TO_KANA.get(s, s) 
-            # 3. 容错：如果找不到，比如 'ng' 这种残留，尝试首字母大写再找
-            if kana == s:
-                kana = PINYIN_TO_KANA.get(s.lower(), s)
             result.append(kana)
         return "".join(result)
 
@@ -98,7 +100,6 @@ class PseudoConverter:
         ]
         for old, new in replacements:
             text = text.replace(old, new)
-        
         if text[-1] not in "aeiou":
             if text[-1] in "td":
                 text += "o"
@@ -118,14 +119,12 @@ class PseudoConverter:
             if not token.strip():
                 converted_parts.append(token)
                 continue
-            
             if self.is_chinese(token[0]):
                 converted_parts.append(self.process_chinese(token))
             elif re.match(r'[a-zA-Z]+', token):
                 converted_parts.append(self.process_english(token))
             else:
                 converted_parts.append(token)
-                
         return "".join(converted_parts)
 
 converter = PseudoConverter()
@@ -142,7 +141,7 @@ class TTSRequest(BaseModel):
     postPhonemeLength: Optional[float] = None
 
 @app.get("/voices")
-def get_voices():
+def get_voices(api_key: str = Depends(verify_api_key)):
     try:
         r = requests.get(f"{VOICEVOX_URL}/speakers")
         r.raise_for_status()
@@ -154,7 +153,7 @@ def get_voices():
         raise HTTPException(status_code=502, detail=f"VOICEVOX error: {str(e)}")
 
 @app.post("/tts")
-def text_to_speech(req: TTSRequest):
+def text_to_speech(req: TTSRequest, api_key: str = Depends(verify_api_key)):
     target_text = req.text
     if req.mode == "pseudo_jp":
         target_text = converter.convert(req.text)
@@ -167,13 +166,10 @@ def text_to_speech(req: TTSRequest):
         )
         if r_query.status_code != 200:
             raise HTTPException(status_code=400, detail=f"Query failed: {r_query.text}")
-
         query_data = r_query.json()
-        
         for k in ["speedScale", "pitchScale", "intonationScale", "volumeScale", "prePhonemeLength", "postPhonemeLength"]:
             if getattr(req, k) is not None:
                 query_data[k] = getattr(req, k)
-
         r_synth = requests.post(
             f"{VOICEVOX_URL}/synthesis",
             params={"speaker": req.speaker},
@@ -182,9 +178,7 @@ def text_to_speech(req: TTSRequest):
         )
         if r_synth.status_code != 200:
             raise HTTPException(status_code=500, detail="Synthesis failed")
-
         return Response(content=r_synth.content, media_type="audio/wav")
-
     except Exception as e:
         logger.error(e)
         raise HTTPException(status_code=500, detail=str(e))
